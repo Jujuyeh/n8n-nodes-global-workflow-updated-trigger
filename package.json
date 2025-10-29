@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-global-workflow-updated-trigger",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A global trigger node for n8n that emits items whenever any workflow in the instance gets updated.",
   "keywords": [
     "n8n",
