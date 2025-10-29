@@ -100,19 +100,20 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
     if (!staticData.lastSync) staticData.lastSync = '1970-01-01T00:00:00.000Z';
     if (!staticData.seenMap) staticData.seenMap = {};
 
-    // Optional Basic and Header Auth credentials
-    let basic: ICredentialDataDecryptedObject | null = null;
-    let headerAuth: ICredentialDataDecryptedObject | null = null;
-    try {
-      basic = await this.getCredentials('httpBasicAuth');
-    } catch {
-      basic = null;
-    }
-    try {
-      headerAuth = await this.getCredentials('httpHeaderAuth');
-    } catch {
-      headerAuth = null;
-    }
+    // Helper to safely fetch credentials as the right type
+    const tryGetCreds = async (
+      name: 'httpBasicAuth' | 'httpHeaderAuth',
+    ): Promise<ICredentialDataDecryptedObject | null> => {
+      try {
+        const c = (await this.getCredentials(name)) as unknown;
+        return (c ?? null) as ICredentialDataDecryptedObject | null;
+      } catch {
+        return null;
+      }
+    };
+
+    const basic = await tryGetCreds('httpBasicAuth');
+    const headerAuth = await tryGetCreds('httpHeaderAuth');
 
     const buildAuthHeaders = (): Record<string, string> => {
       const headers: Record<string, string> = { Accept: 'application/json' };
@@ -171,7 +172,7 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
 
             // Support possible keys for updated time
             const updatedAtIso: string | undefined =
-              wf.updatedAt ?? wf.updated_at ?? undefined;
+              wf.updatedAt ?? (wf as any).updated_at ?? undefined;
 
             const seenAtIso = staticData.seenMap![id];
 
@@ -187,7 +188,7 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
               if (emitFullWorkflow) {
                 try {
                   const full = await getWorkflow(id);
-                  const fullData = full?.data ?? full;
+                  const fullData = (full as any)?.data ?? full;
                   if (fullData) payload.workflow = fullData;
                 } catch {
                   // ignore detailed fetch errors
@@ -208,6 +209,7 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
             }
           }
         } catch (err: any) {
+          // eslint-disable-next-line no-console
           console.error('[GlobalWorkflowUpdatedTrigger] error:', err?.message || err);
         }
         await sleep(intervalSeconds * 1000);

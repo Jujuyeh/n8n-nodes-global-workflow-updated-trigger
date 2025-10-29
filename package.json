@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-global-workflow-updated-trigger",
-  "version": "1.1.0",
+  "version": "0.0.1",
   "description": "A global trigger node for n8n that emits items whenever any workflow in the instance gets updated.",
   "keywords": [
     "n8n",
@@ -23,11 +23,7 @@
   "homepage": "https://github.com/Jujuyeh/n8n-nodes-global-workflow-updated-trigger#readme",
   "main": "dist/nodes/GlobalWorkflowUpdatedTrigger.node.js",
   "types": "dist/nodes/GlobalWorkflowUpdatedTrigger.node.d.ts",
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "lint": "eslint --ext .ts src test",
     "format": "prettier --write .",
@@ -39,6 +35,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",
+    "@types/node": "^20.11.30",
     "eslint": "^9.14.0",
     "prettier": "^3.3.3",
     "typescript": "^5.6.3",
@@ -49,9 +46,7 @@
     "n8n-workflow": ">=1.0.0"
   },
   "n8n": {
-    "nodes": [
-      "dist/nodes/GlobalWorkflowUpdatedTrigger.node.js"
-    ]
+    "nodes": ["dist/nodes/GlobalWorkflowUpdatedTrigger.node.js"]
   },
   "publishConfig": { "access": "public" },
   "packageManager": "npm@10"
