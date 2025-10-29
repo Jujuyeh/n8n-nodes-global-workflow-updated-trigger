@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-global-workflow-updated-trigger",
-  "version": "1.1.0",
+  "version": "0.0.1",
   "description": "A global trigger node for n8n that emits items whenever any workflow in the instance gets updated.",
   "keywords": ["n8n", "n8n-nodes", "n8n-community-node-package", "trigger", "workflow", "automation", "backup"],
   "license": "MIT",
@@ -30,11 +30,11 @@
     "prepublishOnly": "npm run lint && npm run typecheck && npm run build && npm test"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.9.0",
-    "@typescript-eslint/parser": "^8.9.0",
-    "eslint": "^9.12.0",
+    "@eslint/js": "^9.14.0",
+    "eslint": "^9.14.0",
     "prettier": "^3.3.3",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.11.0",
     "vitest": "^2.1.3"
   },
   "peerDependencies": {
@@ -44,5 +44,7 @@
     "nodes": [
       "dist/nodes/GlobalWorkflowUpdatedTrigger.node.js"
     ]
-  }
+  },
+  "publishConfig": { "access": "public" },
+  "packageManager": "npm@10"
 }
