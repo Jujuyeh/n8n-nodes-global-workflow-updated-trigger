@@ -1,0 +1,9 @@
+node_modules
+src
+test
+.github
+*.log
+.DS_Store
+.eslintrc.json
+.prettierrc
+tsconfig.json
