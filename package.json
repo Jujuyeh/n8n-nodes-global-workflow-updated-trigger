@@ -1,8 +1,16 @@
 {
   "name": "n8n-nodes-global-workflow-updated-trigger",
-  "version": "0.0.1",
+  "version": "1.1.0",
   "description": "A global trigger node for n8n that emits items whenever any workflow in the instance gets updated.",
-  "keywords": ["n8n", "n8n-nodes", "n8n-community-node-package", "trigger", "workflow", "automation", "backup"],
+  "keywords": [
+    "n8n",
+    "n8n-nodes",
+    "n8n-community-node-package",
+    "trigger",
+    "workflow",
+    "automation",
+    "backup"
+  ],
   "license": "MIT",
   "author": "Jujuyeh",
   "repository": {
@@ -23,8 +31,8 @@
   "scripts": {
     "lint": "eslint --ext .ts src test",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit",
-    "build": "tsc --project tsconfig.json",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "build": "tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run lint && npm run typecheck && npm run build && npm test"
