@@ -8,11 +8,12 @@ import type {
 import { shouldEmit } from '../lib/diff';
 
 /**
- * A global trigger node that polls the internal n8n REST API
- * and emits an item when any workflow in the instance has been updated.
+ * GlobalWorkflowUpdatedTrigger
  *
- * Uses /api/v1/workflows endpoints.
- * Supports optional httpBasicAuth and httpHeaderAuth credentials.
+ * A polling trigger that checks the n8n internal REST API (/api/v1/workflows)
+ * and emits an item when any workflow in the instance is updated.
+ *
+ * It supports authentication via the built-in n8nApi credentials.
  */
 export class GlobalWorkflowUpdatedTrigger implements INodeType {
   description: INodeTypeDescription = {
@@ -20,7 +21,8 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
     name: 'globalWorkflowUpdatedTrigger',
     group: ['trigger'],
     version: 1,
-    description: 'Emits an item whenever any workflow in the n8n instance has been updated.',
+    description:
+      'Emits an item whenever any workflow in the n8n instance has been updated.',
     defaults: {
       name: 'Global Workflow Updated Trigger',
       color: '#ff6d5a',
@@ -29,8 +31,7 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
     inputs: [],
     outputs: ['main'],
     credentials: [
-      { name: 'httpBasicAuth', required: false },
-      { name: 'httpHeaderAuth', required: false },
+      { name: 'n8nApi', required: false },
     ],
     properties: [
       {
@@ -39,7 +40,7 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
         type: 'string',
         default: 'http://localhost:5678',
         description:
-          'Internal base URL for the n8n REST API (usually http://localhost:5678 inside Docker).',
+          'Internal base URL for the n8n REST API (for example, http://localhost:5678 inside Docker).',
       },
       {
         displayName: 'Interval (seconds)',
@@ -54,14 +55,14 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
         name: 'excludeRegex',
         type: 'string',
         default: '^(_|Backup|Global Workflow Updated Trigger)',
-        description: 'Workflows matching this regex will be ignored.',
+        description: 'Workflows whose names match this regular expression are ignored.',
       },
       {
         displayName: 'Emit Full Workflow JSON',
         name: 'emitFullWorkflow',
         type: 'boolean',
         default: true,
-        description: 'If true, includes the full workflow object.',
+        description: 'If enabled, includes the full workflow object in the output.',
       },
       {
         displayName: 'Request Timeout (ms)',
@@ -77,7 +78,8 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
         type: 'number',
         typeOptions: { minValue: 1, maxValue: 10000 },
         default: 1000,
-        description: 'Limits how many items are emitted per cycle (0 = unlimited).',
+        description:
+          'Limits how many items are emitted per polling cycle (0 = unlimited).',
       },
     ],
   };
@@ -92,7 +94,6 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
 
     const excludeRegex = excludeRegexStr ? new RegExp(excludeRegexStr, 'i') : null;
 
-    // Persistent global state
     const staticData = this.getWorkflowStaticData('global') as {
       lastSync?: string;
       seenMap?: Record<string, string>;
@@ -100,37 +101,12 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
     if (!staticData.lastSync) staticData.lastSync = '1970-01-01T00:00:00.000Z';
     if (!staticData.seenMap) staticData.seenMap = {};
 
-    // Helper to safely fetch credentials as the right type
-    const tryGetCreds = async (
-      name: 'httpBasicAuth' | 'httpHeaderAuth',
-    ): Promise<ICredentialDataDecryptedObject | null> => {
-      try {
-        const c = (await this.getCredentials(name)) as unknown;
-        return (c ?? null) as ICredentialDataDecryptedObject | null;
-      } catch {
-        return null;
-      }
-    };
-
-    const basic = await tryGetCreds('httpBasicAuth');
-    const headerAuth = await tryGetCreds('httpHeaderAuth');
-
-    const buildAuthHeaders = (): Record<string, string> => {
-      const headers: Record<string, string> = { Accept: 'application/json' };
-      if (basic) {
-        const user = (basic.user as string) ?? '';
-        const password = (basic.password as string) ?? '';
-        const token = Buffer.from(`${user}:${password}`).toString('base64');
-        headers.Authorization = `Basic ${token}`;
-      }
-      if (headerAuth) {
-        // Built-in httpHeaderAuth typically exposes "name" and "value"
-        const name = (headerAuth.name as string) || 'X-N8N-API-KEY';
-        const value = (headerAuth.value as string) || '';
-        if (value) headers[name] = value;
-      }
-      return headers;
-    };
+    let n8nApiCreds: ICredentialDataDecryptedObject | null = null;
+    try {
+      n8nApiCreds = (await this.getCredentials('n8nApi')) as unknown as ICredentialDataDecryptedObject;
+    } catch {
+      n8nApiCreds = null;
+    }
 
     const requestJson = async (path: string) => {
       const options = {
@@ -138,13 +114,17 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
         uri: `${baseUrl}${path}`,
         json: true,
         timeout: requestTimeoutMs,
-        headers: buildAuthHeaders(),
+        headers: { Accept: 'application/json' },
       } as any;
+
+      if (n8nApiCreds && (this.helpers as any).requestWithAuthentication) {
+        return (this.helpers as any).requestWithAuthentication.call(this, 'n8nApi', options);
+      }
+
       return this.helpers.request!(options);
     };
 
     const getAllWorkflows = async () => {
-      // /api/v1/workflows may return an array or { data: [...] } depending on version/build
       const res = await requestJson('/api/v1/workflows');
       return Array.isArray(res) ? res : res?.data ?? [];
     };
@@ -170,7 +150,6 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
             const name: string = wf.name ?? `workflow-${id}`;
             if (excludeRegex && excludeRegex.test(name)) continue;
 
-            // Support possible keys for updated time
             const updatedAtIso: string | undefined =
               wf.updatedAt ?? (wf as any).updated_at ?? undefined;
 
@@ -191,7 +170,7 @@ export class GlobalWorkflowUpdatedTrigger implements INodeType {
                   const fullData = (full as any)?.data ?? full;
                   if (fullData) payload.workflow = fullData;
                 } catch {
-                  // ignore detailed fetch errors
+                  // Ignore fetch errors for individual workflows
                 }
               }
 
